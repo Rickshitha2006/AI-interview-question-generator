@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from groq import Groq
 from dotenv import load_dotenv
 import os
 
@@ -8,63 +8,67 @@ import os
 # ----------------------------
 load_dotenv()
 
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
+if "GROQ_API_KEY" in st.secrets:
+    api_key = st.secrets["GROQ_API_KEY"]
 else:
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("GROQ_API_KEY")
 
 if not api_key:
-    st.error("❌ Gemini API Key not found!")
-    st.info("For local use, create a .env file.\nFor Streamlit Cloud, add GEMINI_API_KEY in Secrets.")
+    st.error("❌ GROQ API Key not found!")
+    st.info("Add your API key in .env (local) or Streamlit Secrets.")
     st.stop()
 
-# ----------------------------
-# Configure Gemini
-# ----------------------------
-genai.configure(api_key=api_key)
-
-model = genai.GenerativeModel("gemini-2.5-pro")
+client = Groq(api_key=api_key)
 
 # ----------------------------
 # Streamlit Page
 # ----------------------------
 st.set_page_config(
     page_title="AI Interview Question Generator",
-    page_icon="🤖"
+    page_icon="🤖",
+    layout="wide"
 )
 
 st.title("🤖 AI Interview Question Generator")
-st.write("Generate AI-powered interview questions with answers.")
+st.write("Generate AI-powered interview questions with answers using Groq AI.")
+
+st.divider()
 
 # ----------------------------
 # User Inputs
 # ----------------------------
-domain = st.selectbox(
-    "📚 Select Domain",
-    [
-        "Python",
-        "Java",
-        "C++",
-        "Machine Learning",
-        "Artificial Intelligence",
-        "Data Science",
-        "DBMS",
-        "HTML",
-        "CSS",
-        "JavaScript",
-        "React",
-        "SQL"
-    ]
-)
 
-difficulty = st.selectbox(
-    "🎯 Difficulty Level",
-    [
-        "Beginner",
-        "Intermediate",
-        "Advanced"
-    ]
-)
+col1, col2 = st.columns(2)
+
+with col1:
+    domain = st.selectbox(
+        "📚 Select Domain",
+        [
+            "Python",
+            "Java",
+            "C++",
+            "Artificial Intelligence",
+            "Machine Learning",
+            "Data Science",
+            "DBMS",
+            "SQL",
+            "HTML",
+            "CSS",
+            "JavaScript",
+            "React",
+            "Node.js"
+        ]
+    )
+
+with col2:
+    difficulty = st.selectbox(
+        "🎯 Difficulty",
+        [
+            "Beginner",
+            "Intermediate",
+            "Advanced"
+        ]
+    )
 
 num_questions = st.slider(
     "📄 Number of Questions",
@@ -74,31 +78,53 @@ num_questions = st.slider(
 )
 
 # ----------------------------
-# Generate Questions
+# Generate
 # ----------------------------
-if st.button("🚀 Generate Questions"):
+
+if st.button("🚀 Generate Questions", use_container_width=True):
 
     prompt = f"""
 Generate {num_questions} {difficulty} interview questions for {domain}.
 
-For every question provide:
+For each question provide:
 
 Question:
 Answer:
 
-Keep the answers simple, short and suitable for college students.
+Rules:
 
-Format properly using headings and bullet points.
+1. Answers should be simple.
+2. Suitable for college students.
+3. Keep answers under 6 lines.
+4. Use markdown formatting.
 """
 
     with st.spinner("Generating Interview Questions..."):
 
         try:
-            response = model.generate_content(prompt)
+
+            response = client.chat.completions.create(
+
+                model="llama-3.3-70b-versatile",
+
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+
+                temperature=0.7,
+
+                max_tokens=2048
+
+            )
+
+            result = response.choices[0].message.content
 
             st.success("✅ Questions Generated Successfully!")
 
-            st.markdown(response.text)
+            st.markdown(result)
 
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"❌ Error : {e}")
